@@ -7,6 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 import re
 from collections import defaultdict
 import random
+from telegram.ext import ApplicationBuilder
 
 # File storage
 REMINDERS_FILE = "reminders.json"
@@ -1063,17 +1064,47 @@ async def reschedule_reminders(application):
                 bot_instance.delete_reminder(reminder_id)
 
 def main():
-    TOKEN = os.getenv("BOT_TOKEN")
-    
-    application = (
-        Application.builder()
-        .token(TOKEN)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
-        .pool_timeout(30.0)
-        .build()
-    )
+    import os
+    import asyncio
+    from telegram import Update
+    from telegram.ext import ApplicationBuilder, ContextTypes
+
+    # Example callback function for JobQueue
+    async def reschedule_reminders(context: ContextTypes.DEFAULT_TYPE):
+        # Your reminder logic here
+        print("Rescheduling reminders...")
+
+    async def run_bot():
+        # Get bot token from environment variables
+        TOKEN = os.getenv("BOT_TOKEN")
+        if not TOKEN:
+            raise ValueError("BOT_TOKEN environment variable not set!")
+
+        # Build the application
+        application = (
+            ApplicationBuilder()
+            .token(TOKEN)
+            .connect_timeout(30.0)
+            .read_timeout(30.0)
+            .write_timeout(30.0)
+            .pool_timeout(30.0)
+            .concurrent_updates(True)
+            .build()
+        )
+
+        # Schedule job safely
+        if application.job_queue:
+            # Schedule your reminders after 5 seconds (example)
+            application.job_queue.run_once(reschedule_reminders, when=5)
+        else:
+            print("JobQueue not set up! Make sure PTB is installed with [job-queue].")
+
+        # Run the bot
+        await application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    # Run the async bot
+    asyncio.run(run_bot())
+
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
