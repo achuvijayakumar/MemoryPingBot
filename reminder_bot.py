@@ -1063,7 +1063,7 @@ async def reschedule_reminders(application):
                 bot_instance.delete_reminder(reminder_id)
 
 def main():
-    TOKEN = "8435749626:AAFdsDqtjmvvqfF6jOdXpGEc8UO2lsrf39U"
+    TOKEN = os.getenv("BOT_TOKEN")
     
     application = (
         Application.builder()
