@@ -772,8 +772,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     confirmation = bot_instance.get_random_confirmation()
     
+    # Display the ACTUAL local time, not the stored UTC time
+    display_time = datetime.now() + timedelta(seconds=delay)
+    
     await update.message.reply_text(
-        f"✅ *{confirmation}*\n\n{priority_emoji} {task}\n{cat_emoji} {category.capitalize()}\n⏰ {remind_time.strftime('%I:%M %p, %b %d')}\n⏳ In {time_msg.strip()}{recurring_text}{shared_text}{notes_text}{achievement_text}{bot_instance.get_footer()}",
+        f"✅ *{confirmation}*\n\n{priority_emoji} {task}\n{cat_emoji} {category.capitalize()}\n⏰ {display_time.strftime('%I:%M %p, %b %d')}\n⏳ In {time_msg.strip()}{recurring_text}{shared_text}{notes_text}{achievement_text}{bot_instance.get_footer()}",
         parse_mode='Markdown'
     )
 
@@ -1083,6 +1086,9 @@ async def reschedule_reminders(application):
                 bot_instance.delete_reminder(reminder_id)
 
 def main():
+    # Start Flask web server to keep Render alive
+    keep_alive()
+    
     # Get token from environment variable for security
     TOKEN = os.getenv("BOT_TOKEN")
     
@@ -1092,6 +1098,7 @@ def main():
         return
     
     print(f"🔑 Bot token loaded: {TOKEN[:10]}...{TOKEN[-5:]}")
+    print("🌐 Flask web server started on port", os.getenv('PORT', 8080))
     
     application = (
         Application.builder()
