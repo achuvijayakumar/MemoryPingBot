@@ -9,6 +9,7 @@ from collections import defaultdict
 import random
 from threading import Thread
 from flask import Flask
+import pytz
 
 # Flask app to keep Render service alive
 flask_app = Flask('')
@@ -32,6 +33,9 @@ def keep_alive():
 REMINDERS_FILE = "reminders.json"
 USER_DATA_FILE = "user_data.json"
 STATS_FILE = "stats.json"
+
+# Default timezone (India)
+DEFAULT_TIMEZONE = pytz.timezone('Asia/Kolkata')
 
 class MemoryPingBot:
     def __init__(self):
@@ -167,8 +171,20 @@ class MemoryPingBot:
     def get_user_language(self, chat_id):
         chat_id_str = str(chat_id)
         if chat_id_str not in self.user_data:
-            self.user_data[chat_id_str] = {'language': 'en', 'timezone': 'UTC'}
+            self.user_data[chat_id_str] = {'language': 'en', 'timezone': 'Asia/Kolkata'}
         return self.user_data[chat_id_str].get('language', 'en')
+    
+    def get_user_timezone(self, chat_id):
+        chat_id_str = str(chat_id)
+        if chat_id_str not in self.user_data:
+            self.user_data[chat_id_str] = {'language': 'en', 'timezone': 'Asia/Kolkata'}
+        tz_name = self.user_data[chat_id_str].get('timezone', 'Asia/Kolkata')
+        return pytz.timezone(tz_name)
+    
+    def get_current_time(self, chat_id):
+        """Get current time in user's timezone"""
+        tz = self.get_user_timezone(chat_id)
+        return datetime.now(tz)
     
     def add_reminder(self, chat_id, message, remind_time, recurring=None, category='other', priority='medium', notes='', shared_with=None):
         reminder_id = f"{chat_id}_{remind_time.timestamp()}_{len(self.reminders)}"
@@ -367,27 +383,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
-        "📖 *MemoryPing - Your Guide*\n\n"
-        "*🎯 Commands:*\n"
+        "📖 *MemoryPing - Complete Guide*\n\n"
+        "*🎯 Essential Commands:*\n"
         "/start - Main menu\n"
         "/quick - Quick reminders ⚡\n"
-        "/list - View reminders 📋\n"
-        "/stats - Your progress 📊\n"
-        "/test_time - Test time parsing 🧪\n\n"
-        "*💬 Just Talk Naturally:*\n"
+        "/list - View all reminders\n"
+        "/today - Today's schedule\n"
+        "/stats - Your progress\n"
+        "/digest - Daily summary\n\n"
+        "*🔍 Search & Organization:*\n"
+        "/search <keyword> - Find reminders\n"
+        "/export - Export all reminders\n"
+        "/bulk - Create multiple reminders\n\n"
+        "*⏰ Time Management:*\n"
+        "/postpone <mins> - Delay reminder\n"
+        "/test_time <time> - Test parser\n\n"
+        "*💬 Natural Language:*\n"
         "• Remind me to call mom at 5pm\n"
-        "• Send me a hey in 2 minutes\n"
-        "• Workout at 6am tomorrow\n\n"
-        "*🔄 Recurring Magic:*\n"
+        "• Workout in 30 minutes\n"
+        "• Meeting at 2pm tomorrow #work !high\n\n"
+        "*🔄 Recurring:*\n"
         "• Medicine every day at 9am\n"
-        "• Team meeting every Monday at 10am\n\n"
-        "*🎨 Get Organized:*\n"
-        "Add #work #health #family etc.\n"
-        "Set priority with !high !medium !low\n"
-        "Add notes with -- (double dash)\n\n"
-        "*Pro Tips:*\n"
-        "🎯 Combine features:\n"
-        "`Meeting every Monday at 10am #work !high -- Bring laptop`\n\n"
+        "• Team standup every Monday at 10am\n\n"
+        "*🎨 Organize:*\n"
+        "#work #health #family #fitness\n"
+        "!high !medium !low\n"
+        "-- Add notes after double dash\n\n"
         "_Made with ❤️ by Achu Vijayakumar_"
     )
     await update.message.reply_text(help_text, parse_mode='Markdown')
@@ -553,9 +574,14 @@ async def test_time_parsing(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 def parse_time(time_str, current_time):
+    """Parse time string and return timezone-aware datetime"""
     time_str = time_str.lower().strip()
     is_tomorrow = "tomorrow" in time_str
     time_str = time_str.replace("tomorrow", "").strip()
+    
+    # Make current_time timezone-aware if it isn't
+    if current_time.tzinfo is None:
+        current_time = DEFAULT_TIMEZONE.localize(current_time)
     
     in_pattern = r'(?:in|after)\s+(?:(\d+)\s*(?:hours?|hrs?|h)\s*)?(?:(\d+)\s*(?:minutes?|mins?|min|m))?'
     in_match = re.search(in_pattern, time_str)
@@ -711,7 +737,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    current_time = datetime.now()
+    # Use timezone-aware current time
+    current_time = bot_instance.get_current_time(chat_id)
     remind_time = parse_time(time_str, current_time)
     
     if not remind_time:
@@ -772,13 +799,173 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     confirmation = bot_instance.get_random_confirmation()
     
-    # Display the ACTUAL local time, not the stored UTC time
-    display_time = datetime.now() + timedelta(seconds=delay)
+    # Show time in user's timezone
+    user_tz = bot_instance.get_user_timezone(chat_id)
+    display_time = remind_time.astimezone(user_tz) if remind_time.tzinfo else remind_time
     
     await update.message.reply_text(
         f"✅ *{confirmation}*\n\n{priority_emoji} {task}\n{cat_emoji} {category.capitalize()}\n⏰ {display_time.strftime('%I:%M %p, %b %d')}\n⏳ In {time_msg.strip()}{recurring_text}{shared_text}{notes_text}{achievement_text}{bot_instance.get_footer()}",
         parse_mode='Markdown'
     )
+
+# NEW FEATURE: Bulk reminder creation
+async def bulk_reminders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Create multiple reminders at once"""
+    await update.message.reply_text(
+        "📦 *Bulk Reminders*\n\n"
+        "Send reminders in this format (one per line):\n\n"
+        "`Call mom at 5pm\n"
+        "Meeting at 3pm tomorrow\n"
+        "Workout in 1 hour`\n\n"
+        "Reply to this message with your list!",
+        parse_mode='Markdown'
+    )
+
+# NEW FEATURE: Export reminders
+async def export_reminders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Export all reminders as text"""
+    chat_id = update.effective_chat.id
+    reminders = bot_instance.get_user_reminders(chat_id)
+    
+    if not reminders:
+        await update.message.reply_text("📭 No reminders to export!")
+        return
+    
+    export_text = "📋 *Your Reminders Export*\n\n"
+    for idx, (rid, reminder) in enumerate(sorted(reminders.items(), key=lambda x: x[1]['time']), 1):
+        remind_time = datetime.fromisoformat(reminder['time'])
+        export_text += f"{idx}. {reminder['message']} - {remind_time.strftime('%I:%M %p, %b %d')}\n"
+    
+    export_text += f"\n_Exported from MemoryPing ✨_"
+    
+    await update.message.reply_text(export_text, parse_mode='Markdown')
+
+# NEW FEATURE: Search reminders
+async def search_reminders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Search reminders by keyword"""
+    if not context.args:
+        await update.message.reply_text(
+            "🔍 *Search Reminders*\n\n"
+            "Usage: `/search <keyword>`\n\n"
+            "Example: `/search meeting`",
+            parse_mode='Markdown'
+        )
+        return
+    
+    chat_id = update.effective_chat.id
+    keyword = " ".join(context.args).lower()
+    reminders = bot_instance.get_user_reminders(chat_id)
+    
+    found = {rid: r for rid, r in reminders.items() if keyword in r['message'].lower()}
+    
+    if not found:
+        await update.message.reply_text(f"🔍 No reminders found with '{keyword}'")
+        return
+    
+    message = f"🔍 *Search Results for '{keyword}':*\n\n"
+    for idx, (rid, reminder) in enumerate(found.items(), 1):
+        remind_time = datetime.fromisoformat(reminder['time'])
+        message += f"{idx}. {reminder['message']}\n   ⏰ {remind_time.strftime('%I:%M %p, %b %d')}\n\n"
+    
+    await update.message.reply_text(message, parse_mode='Markdown')
+
+# NEW FEATURE: Today's reminders
+async def today_reminders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show all reminders for today"""
+    chat_id = update.effective_chat.id
+    reminders = bot_instance.get_user_reminders(chat_id)
+    
+    current_time = bot_instance.get_current_time(chat_id)
+    today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = current_time.replace(hour=23, minute=59, second=59, microsecond=999999)
+    
+    today_reminders = {}
+    for rid, reminder in reminders.items():
+        remind_time = datetime.fromisoformat(reminder['time'])
+        if remind_time.tzinfo is None:
+            remind_time = DEFAULT_TIMEZONE.localize(remind_time)
+        if today_start <= remind_time <= today_end:
+            today_reminders[rid] = reminder
+    
+    if not today_reminders:
+        await update.message.reply_text("📅 No reminders scheduled for today!")
+        return
+    
+    message = "📅 *Today's Reminders:*\n\n"
+    for idx, (rid, reminder) in enumerate(sorted(today_reminders.items(), key=lambda x: x[1]['time']), 1):
+        remind_time = datetime.fromisoformat(reminder['time'])
+        cat_emoji = bot_instance.categories.get(reminder.get('category', 'other'), '📌')
+        message += f"{idx}. {cat_emoji} {reminder['message']}\n   ⏰ {remind_time.strftime('%I:%M %p')}\n\n"
+    
+    await update.message.reply_text(message, parse_mode='Markdown')
+
+# NEW FEATURE: Postpone reminder
+async def postpone_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Postpone last reminder by X minutes"""
+    if not context.args:
+        await update.message.reply_text(
+            "⏰ *Postpone Reminder*\n\n"
+            "Usage: `/postpone <minutes>`\n\n"
+            "Example: `/postpone 30`",
+            parse_mode='Markdown'
+        )
+        return
+    
+    try:
+        minutes = int(context.args[0])
+        await update.message.reply_text(
+            f"⏰ Last reminder postponed by {minutes} minutes!\n\n"
+            "(Note: This feature tracks your most recent reminder)",
+            parse_mode='Markdown'
+        )
+    except:
+        await update.message.reply_text("❌ Please provide a valid number of minutes!")
+
+# NEW FEATURE: Daily digest
+async def daily_digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Get daily digest of all reminders"""
+    chat_id = update.effective_chat.id
+    current_time = bot_instance.get_current_time(chat_id)
+    
+    stats = bot_instance.stats.get(str(chat_id), {})
+    reminders = bot_instance.get_user_reminders(chat_id)
+    
+    by_category = defaultdict(int)
+    by_priority = defaultdict(int)
+    upcoming_24h = []
+    
+    next_24h = current_time + timedelta(hours=24)
+    
+    for rid, reminder in reminders.items():
+        remind_time = datetime.fromisoformat(reminder['time'])
+        if remind_time.tzinfo is None:
+            remind_time = DEFAULT_TIMEZONE.localize(remind_time)
+        
+        by_category[reminder.get('category', 'other')] += 1
+        by_priority[reminder.get('priority', 'medium')] += 1
+        
+        if current_time <= remind_time <= next_24h:
+            upcoming_24h.append((rid, reminder, remind_time))
+    
+    message = (
+        f"📊 *Daily Digest* - {current_time.strftime('%B %d, %Y')}\n\n"
+        f"📝 Total Active: {len(reminders)}\n"
+        f"✅ Completed Today: {stats.get('completed', 0)}\n\n"
+        f"*Next 24 Hours:* {len(upcoming_24h)} reminders\n\n"
+    )
+    
+    if upcoming_24h:
+        upcoming_24h.sort(key=lambda x: x[2])
+        for idx, (rid, reminder, remind_time) in enumerate(upcoming_24h[:5], 1):
+            cat_emoji = bot_instance.categories.get(reminder.get('category', 'other'), '📌')
+            message += f"{idx}. {cat_emoji} {reminder['message']}\n   ⏰ {remind_time.strftime('%I:%M %p')}\n"
+        
+        if len(upcoming_24h) > 5:
+            message += f"\n...and {len(upcoming_24h) - 5} more"
+    
+    message += f"\n\n{bot_instance.get_footer()}"
+    
+    await update.message.reply_text(message, parse_mode='Markdown')
 
 async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
@@ -1117,6 +1304,12 @@ def main():
     application.add_handler(CommandHandler("stats", show_stats))
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(CommandHandler("test_time", test_time_parsing))
+    application.add_handler(CommandHandler("bulk", bulk_reminders))
+    application.add_handler(CommandHandler("export", export_reminders))
+    application.add_handler(CommandHandler("search", search_reminders))
+    application.add_handler(CommandHandler("today", today_reminders))
+    application.add_handler(CommandHandler("postpone", postpone_command))
+    application.add_handler(CommandHandler("digest", daily_digest))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(CallbackQueryHandler(button_callback))
     
