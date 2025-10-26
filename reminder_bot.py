@@ -7,7 +7,26 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 import re
 from collections import defaultdict
 import random
-from keep_alive import keep_alive
+from threading import Thread
+from flask import Flask
+
+# Flask app to keep Render service alive
+flask_app = Flask('')
+
+@flask_app.route('/')
+def home():
+    return "MemoryPing Bot is running! ✨ Created by Achu Vijayakumar"
+
+@flask_app.route('/health')
+def health():
+    return {"status": "alive", "bot": "MemoryPing"}
+
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)))
+
+def keep_alive():
+    t = Thread(target=run_flask, daemon=True)
+    t.start()
 
 # File storage
 REMINDERS_FILE = "reminders.json"
@@ -1109,8 +1128,6 @@ def main():
     print("  ✅ Smart Time Parsing")
     print("\n🎯 Ready to help users never forget anything!")
     print("🌐 Running on Render server 24/7")
-
-    keep_alive()  # Start web server to keep Render awake
     
     # Use polling for Render (free tier)
     application.run_polling(
