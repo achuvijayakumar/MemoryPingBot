@@ -1,13 +1,1 @@
-python-telegram-bot[job-queue]==21.0
-flask==3.0.0
-```
-
-Then use **UptimeRobot** (free service) to ping your Render URL every 5 minutes to keep it alive!
-
-### **5. Check Logs:**
-
-On Render dashboard, click "Logs" to see:
-```
-🤖 MemoryPing Advanced is running...
-✨ Created by Achu Vijayakumar
-🌐 Running on Render server 24/7
+python-telegram-bot[job-queue]==21.
