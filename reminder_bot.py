@@ -7,6 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 import re
 from collections import defaultdict
 import random
+from keep_alive import keep_alive
 
 # File storage
 REMINDERS_FILE = "reminders.json"
@@ -1063,48 +1064,25 @@ async def reschedule_reminders(application):
                 bot_instance.delete_reminder(reminder_id)
 
 def main():
-    import os
-    import asyncio
-    from telegram import Update
-    from telegram.ext import ApplicationBuilder, ContextTypes
-
-    # Example callback for JobQueue
-    async def reschedule_reminders(context: ContextTypes.DEFAULT_TYPE):
-        # Your reminder logic goes here
-        print("Rescheduling reminders...")
-
-    async def run_bot():
-        # Get bot token from environment variables
-        TOKEN = os.getenv("BOT_TOKEN")
-        if not TOKEN:
-            raise ValueError("BOT_TOKEN environment variable not set!")
-
-        # Build the application
-        application = (
-            ApplicationBuilder()
-            .token(TOKEN)
-            .connect_timeout(30.0)
-            .read_timeout(30.0)
-            .write_timeout(30.0)
-            .pool_timeout(30.0)
-            .concurrent_updates(True)
-            .build()
-        )
-
-        # Schedule JobQueue safely
-        if application.job_queue:
-            # Example: schedule reminders after 5 seconds
-            application.job_queue.run_once(reschedule_reminders, when=5)
-        else:
-            print("JobQueue not available! Ensure python-telegram-bot[job-queue] is installed.")
-
-        # Start polling
-        await application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-    # Run the async bot
-    asyncio.run(run_bot())
-
-
+    # Get token from environment variable for security
+    TOKEN = os.getenv("BOT_TOKEN")
+    
+    if not TOKEN:
+        print("❌ ERROR: BOT_TOKEN environment variable not found!")
+        print("Please set BOT_TOKEN in your environment variables.")
+        return
+    
+    print(f"🔑 Bot token loaded: {TOKEN[:10]}...{TOKEN[-5:]}")
+    
+    application = (
+        Application.builder()
+        .token(TOKEN)
+        .connect_timeout(30.0)
+        .read_timeout(30.0)
+        .write_timeout(30.0)
+        .pool_timeout(30.0)
+        .build()
+    )
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -1130,8 +1108,15 @@ def main():
     print("  ✅ Fun Random Messages")
     print("  ✅ Smart Time Parsing")
     print("\n🎯 Ready to help users never forget anything!")
+    print("🌐 Running on Render server 24/7")
+
+    keep_alive()  # Start web server to keep Render awake
     
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Use polling for Render (free tier)
+    application.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True
+    )
 
 if __name__ == '__main__':
     main()
