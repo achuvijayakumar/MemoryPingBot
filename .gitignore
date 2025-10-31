@@ -1,0 +1,207 @@
+# ============================================================================
+# MemoryPing v4.0 - Git Ignore File
+# Created by Achu Vijayakumar
+# ============================================================================
+
+# ============================================================================
+# Python
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================================================
+# Virtual Environments
+# ============================================================================
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv
+pyvenv.cfg
+
+# ============================================================================
+# Bot Data Files (IMPORTANT - Contains user data!)
+# ============================================================================
+# These files contain sensitive user information and should NOT be committed
+reminders.json
+user_data.json
+stats.json
+habits.json
+moods.json
+
+# Backup files
+*.json.bak
+*.json.backup
+backups/
+
+# ============================================================================
+# Environment Variables & Secrets
+# ============================================================================
+.env
+.env.local
+.env.*.local
+.envrc
+*.key
+*.pem
+secrets.txt
+config.local.py
+
+# ============================================================================
+# IDE & Editor Files
+# ============================================================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================================================
+# Operating System Files
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# Logs & Databases
+# ============================================================================
+*.log
+*.sqlite
+*.sqlite3
+*.db
+logs/
+*.log.*
+
+# ============================================================================
+# Testing & Coverage
+# ============================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+nosetests.xml
+
+# ============================================================================
+# Documentation
+# ============================================================================
+docs/_build/
+site/
+.mkdocs-cache/
+
+# ============================================================================
+# Jupyter Notebook
+# ============================================================================
+.ipynb_checkpoints
+*.ipynb
+
+# ============================================================================
+# Render/Deployment
+# ============================================================================
+.render/
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+
+# ============================================================================
+# Archive Files (for deployment testing)
+# ============================================================================
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ============================================================================
+# KEEP THESE FILES (Allow List)
+# ============================================================================
+# These files SHOULD be committed
+!requirements.txt
+!render.yaml
+!.gitignore
+!README.md
+!DEPLOYMENT.md
+!LICENSE
